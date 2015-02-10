@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Pong</title>
+    
+    <style>
+        body { padding: 0; margin: 0; overflow: hidden; cursor: none; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        var width  = window.innerWidth;
+        var height = window.innerHeight;
+        var canvas, context, score = 0;
+
+        (function setUp() {
+            window.requestAnimFrame = (function () { 
+                return window.requestAnimationFrame || 
+                    window.webkitRequestAnimationFrame || 
+                    window.mozRequestAnimationFrame || 
+                    window.oRequestAnimationFrame || 
+                    window.msRequestAnimationFrame ||
+                    function (callback) { 
+                        return window.setTimeout(callback, 1000 / 60); 
+                    };
+            })();
+
+            canvas  = document.getElementById('canvas');
+            context = canvas.getContext('2d');
+
+            canvas.width  = width;
+            canvas.height = height;
+
+            context.fillRect(0, 0, width, height);
+        })();
+
+        var particles = [];
+        var mouse     = {};
+        var paddles   = {
+            draw : function () {
+                context.fillStyle = "white";
+                context.fillRect(paddles.top.x, paddles.top.y, paddles.top.width, paddles.top.height);
+                context.fillRect(paddles.bottom.x, paddles.bottom.y, paddles.bottom.width, paddles.bottom.height);
+            },
+            moveWithMouse : function () {
+                if (mouse.x && mouse.y) {
+                    this.top.x    = mouse.x - (this.top.width / 2);
+                    this.bottom.x = mouse.x - (this.bottom.width / 2);
+                }
+            },
+            moveWithTilt : function (value) {
+                if (value > 0) {
+
+                this.bottom.x += 5;
+                this.top.x += 5;
+            }
+            else if (value < 0) {
+                this.top.x -= 5;
+                this.bottom.x += 5;
+            }
+            }
+        };
+        var ball = {
+            x         : 500,
+            y         : 50,
+            radius    : 5,
+            colour    : "white",
+            velocityX : 4,
+            velocityY : 8,
+            draw      : function () {
+                context.beginPath();
+                context.fillStyle = this.colour;
+                context.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                context.fill();
+            },
+            move       : function () {
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+            },
+            inverseYDirection : function () {
+                this.velocityY = -this.velocityY;
+            },
+            inverseXDirection  : function () {
+                this.velocityX = -this.velocityX;
+            },
+            didScore          : function () {
+                if (this.y + this.radius > height) {
+                    this.y = height - this.radius;
+                    return true;
+                }
+                else if (this.y < 0) {
+                    this.y = this.radius;
+                    return true;
+                }
+
+                return false;
+            },
+            checkWallBounce : function () {
+                if (this.didHitRightWall()) {
+                    this.inverseXDirection();
+                    this.x = width - this.radius;
+
+                    return true;
+                }
+                else if (this.didHitLeftWall()) {
+                    this.inverseXDirection();
+                    this.x = this.radius;
+
+                    return true;
+                }
+
+                return false;
+            },
+            didHitRightWall : function () {
+                return this.x + this.radius > width;
+            },
+            didHitLeftWall : function () {
+                return this.x - this.radius < 0;
+            }
+        };
+
+        function Paddle(pos) {
+            this.height = 5;
+            this.width = 150;
+
+            // Paddles position
+            this.x = width / 2 - this.width / 2;
+            this.y = (pos == "top") ? 0 : height - this.height;
+        }
+
+        paddles.top = new Paddle('top');
+        paddles.bottom = new Paddle('bottom');
+
+        function draw() {
+            context.fillStyle = "black";
+            context.fillRect(0, 0, width, height);
+
+            paddles.draw();
+            ball.draw();
+        }
+
+        function animloop() {
+            requestAnimFrame(animloop);
+            draw();
+            update();
+        }
+
+        function update() {
+            ball.move();
+
+            if (collides(ball, paddles.top) || collides(ball, paddles.bottom)) {
+                ball.inverseYDirection();
+                window.location.hash = ++score;
+            }
+            
+            ball.checkWallBounce();
+            
+            paddles.moveWithMouse();
+            paddles.moveWithTilt();
+
+            if (ball.didScore()) {
+                console.log('Goal');
+            }  
+        }
+
+       function collides(ball, paddle) {
+            if (ball.x + ball.radius >= paddle.x && ball.x - ball.radius <= paddle.x + paddle.width) {
+                if (ball.y >= (paddle.y - paddle.height) && paddle.y > 0) {
+                    paddleHit = 1;
+                    return true;
+                }
+                else if (ball.y <= paddle.height && paddle.y == 0) {
+                    paddleHit = 2;
+                    return true;
+                }
+            }
+            else { 
+                return false;
+            }
+        }
+
+        canvas.addEventListener('mousemove', function (event) {
+            mouse.x = event.pageX;
+            mouse.y = event.pageY;
+        });
+
+        window.addEventListener('devicemotion', function (event) {
+            paddles.moveWithTilt(event.acceleration.x);
+        })
+
+        animloop();
+    </script>
+</body>
+</html>
